@@ -34,6 +34,8 @@ class Render(object):
         self.light = V3(0,0,1)
         self.active_texture = None
 
+        self.active_shader = None
+
     def glCreateWindow(self, width, height):
         self.width = width
         self.height = height
@@ -60,13 +62,14 @@ class Render(object):
             y >= self.viewport_initial_y and
             y <= self.viewport_final_y)
 
-    def glClearColor(self, r,g,b):
-        rgb_array = decimalToRgb([r,g,b])
-        self.clear_color = color(rgb_array[0], rgb_array[1], rgb_array[2])
 
     def glVertex(self, x, y, color = None):
         pixelX = ( x + 1) * (self.vpWidth  / 2 ) + self.vpX
         pixelY = ( y + 1) * (self.vpHeight / 2 ) + self.vpY
+        
+        if pixelX >= self.width or pixelX < 0 or pixelY >= self.height or pixelY < 0:
+            return
+
         try:
             self.pixels[round(pixelY)][round(pixelX)] = color or self.curr_color
         except:
@@ -81,8 +84,10 @@ class Render(object):
             pass
     
     def glColor(self, r,g,b):
-        rgb_array = decimalToRgb([r,g,b])
-        self.curr_color = color(rgb_array[0], rgb_array[1], rgb_array[2])
+        self.curr_color = color(r,g,b)
+
+    def glClearColor(self, r,g,b):
+        self.clear_color = color(r,g,b)
 
     def glFixCoordinate(self, value, main_axis):
         fixed_coordinate = 0
@@ -98,9 +103,6 @@ class Render(object):
         archivo = open(filename, 'wb')
 
         # File header 14 bytes
-        #archivo.write(char('B'))
-        #archivo.write(char('M'))
-
         archivo.write(bytes('B'.encode('ascii')))
         archivo.write(bytes('M'.encode('ascii')))
 
@@ -173,6 +175,7 @@ class Render(object):
                 archivo.write(color(depth,depth,depth))
 
         archivo.close()
+  
     def glLine(self, v0, v1, color = None) :
         x0 = self.glFixCoordinate(v0.x, True)
         x1 = self.glFixCoordinate(v1.x, True)
@@ -304,8 +307,6 @@ class Render(object):
     def loadModel(self, filename, translate = V3(0,0,0), scale = V3(1,1,1), isWireframe = False):
         model = Obj(filename)
 
-        light = V3(0,0,1)
-
         for face in model.faces:
 
             vertCount = len(face)
@@ -346,28 +347,18 @@ class Render(object):
                     vt1 = V2(0,0) 
                     vt2 = V2(0,0) 
                     vt3 = V2(0,0)
+                vn0 = model.normals[face[0][2] - 1]
+                vn1 = model.normals[face[1][2] - 1]
+                vn2 = model.normals[face[2][2] - 1]
+                if vertCount > 3:
+                    vn3 = model.normals[face[3][2] - 1]
 
-                # vn0 = model.normals[face[0][2] - 1]
-                # vn1 = model.normals[face[1][2] - 1]
-                # vn2 = model.normals[face[2][2] - 1]
-                # if vertCount > 3:
-                #     vn3 = model.normals[face[3][2] - 1]
-
-                normal = cross(substract(v1,v0), substract(v2,v0))
-                intensity = dot(norm(normal), norm(light))
-
-                if intensity >=0:
-                    self.triangle_bc(v0,v1,v2, texture=self.active_texture, texcoords=(vt0,vt1, vt2), intensity=intensity)
-
-                    # Manage square rendering
-                    if vertCount > 3:
-                        v3 = model.vertices[ face[3][0] - 1 ]
-                        v3 = self.transform(v3,translate, scale)
-                        if intensity >=0:
-                            self.triangle_bc(v0,v2,v3, color(intensity, intensity, intensity))
-
+                self.triangle_bc(v0,v1,v2, texcoords = (vt0,vt1,vt2), normals = (vn0,vn1,vn2))
+                if vertCount > 3: #asumamos que 4, un cuadrado
+                    self.triangle_bc(v0,v2,v3, texcoords = (vt0,vt2,vt3), normals = (vn0,vn2,vn3))                    
+    
     #Barycentric Coordinates
-    def triangle_bc(self, A, B, C, texture, _color= WHITE,texcoords = (), intensity = 1):
+    def triangle_bc(self, A, B, C, texcoords = (), normals = (), _color = None):
         #bounding box
         minX = min(A.x, B.x, C.x)
         minY = min(A.y, B.y, C.y)
@@ -385,42 +376,16 @@ class Render(object):
 
                     z = A.z * u + B.z * v + C.z * w
                     if z > self.zbuffer[y][x]:
-
-                        b, g, r = _color
-                        b/= 255
-                        g/= 255
-                        r/= 255
-
-                        b*= intensity
-                        g*= intensity
-                        r*= intensity
-
-                        if texture:
-                            ta, tb, tc = texcoords
-
-                            tx = ta.x * u + tb.x * v + tc.x*w
-                            ty = ta.y * u + tb.y * v + tc.y*w
-
-                            texColor = texture.getColor(tx,ty)
-                            b*=texColor[0] /255
-                            g*=texColor[1] /255
-                            r*=texColor[2] /255
-
-                        # r, g, b = self.active_shader(
-                        #     self,
-                        #     verts=(A,B,C),
-                        #     baryCoords=(u,v,w),
-                        #     texCoords=texcoords,
-                        #     normals=normals,
-                        #     color = _color or self.curr_color)
+                        
+                        r, g, b = self.active_shader(
+                            self,
+                            verts=(A,B,C),
+                            baryCoords=(u,v,w),
+                            texCoords=texcoords,
+                            normals=normals,
+                            color = _color or self.curr_color)
 
                         self.glPoint(x, y, color(r,g,b))
                         self.zbuffer[y][x] = z
-
-
-
-
-
-
 
 
