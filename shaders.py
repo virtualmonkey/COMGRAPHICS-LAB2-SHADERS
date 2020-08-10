@@ -36,6 +36,8 @@ def gourad(render, **kwargs):
     else:
         return 0,0,0
 
+# Toon Shader determines if the intesity of a point is inside a certain range and assings
+# a fixed number to the intestity to make the image look like a cartoon
 def toon(render, **kwargs):
     u, v, w = kwargs['baryCoords']
     ta, tb, tc = kwargs['texCoords']
@@ -68,7 +70,7 @@ def toon(render, **kwargs):
         intensity=0.6
     if (intensity>0.6 and intensity<=0.9):
         intensity=0.9
-    if (intensity>0.9): 
+    if intensity>0.9: 
         intensity=1
 
     b *= intensity
@@ -80,6 +82,7 @@ def toon(render, **kwargs):
     else:
         return 0,0,0
 
+# predominantColor searches for the most abundant color in a point and reduces the intensity of the others
 def predominantColor (render, **kwargs):
     u, v, w = kwargs['baryCoords']
     ta, tb, tc = kwargs['texCoords']
@@ -124,7 +127,10 @@ def predominantColor (render, **kwargs):
         return r, g, b
     else:
         return 0,0,0
-def sombreadoCool(render, **kwargs):
+
+# invertedSkin makes uses the ilumnation to render the same texture twice, but in the inverted form
+# making the render look like a ghost
+def invertedSkin(render, **kwargs):
     u, v, w = kwargs['baryCoords']
     ta, tb, tc = kwargs['texCoords']
     na, nb, nc = kwargs['normals']
@@ -151,9 +157,9 @@ def sombreadoCool(render, **kwargs):
     intensity = np.dot(normal, render.light)
     
 
-    b *= intensity
-    g *= intensity
-    r *= intensity
+    b *= intensity * 0.2
+    g *= intensity * 0.2
+    r *= intensity * 0.2
 
     if render.active_texture2:
         texColor = render.active_texture2.getColor(tx, ty)
@@ -161,7 +167,6 @@ def sombreadoCool(render, **kwargs):
         b += (texColor[0] / 255) * (1 - intensity)
         g += (texColor[1] / 255) * (1 - intensity)
         r += (texColor[2] / 255) * (1 - intensity)
-
 
     return r, g, b
 
