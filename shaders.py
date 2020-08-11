@@ -161,12 +161,12 @@ def invertedSkin(render, **kwargs):
     g *= intensity * 0.2
     r *= intensity * 0.2
 
-    if render.active_texture2:
-        texColor = render.active_texture2.getColor(tx, ty)
+    
+    texColor = render.active_texture.getColor(tx, ty)
 
-        b += (texColor[0] / 255) * (1 - intensity)
-        g += (texColor[1] / 255) * (1 - intensity)
-        r += (texColor[2] / 255) * (1 - intensity)
+    b += (texColor[0] / 255) * (1 - intensity)
+    g += (texColor[1] / 255) * (1 - intensity)
+    r += (texColor[2] / 255) * (1 - intensity)
 
     return r, g, b
 

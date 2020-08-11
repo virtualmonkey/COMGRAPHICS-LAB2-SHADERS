@@ -6,7 +6,6 @@ from shaders import *
 r = Render(1000,1000)
 
 r.active_texture = Texture('./models/model.bmp')
-r.active_texture2 = Texture('./models/model.bmp')
 
 
 luz = V3(0,0,1)
